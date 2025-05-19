@@ -7,16 +7,52 @@ import { copyTexturesToAtlases, createAtlases, remapUvsToAtlas } from './include
 import { inspect, humanFileSize, parseArgs } from './includes/utils.js';
 
 // Import JSON files using standard imports
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const tPose = JSON.parse(readFileSync(path.join(__dirname, './data/t-pose.json'), 'utf8'));
-const jointsTuples = JSON.parse(readFileSync(path.join(__dirname, './data/joints-map.json'), 'utf8'));
-const jointsToRemove = JSON.parse(readFileSync(path.join(__dirname, './data/joints-remove.json'), 'utf8'));
+// Helper function to find data directory in different environments
+function resolveDataPath(relativePath) {
+    // Try the standard path
+    const standardPath = path.join(__dirname, './data', relativePath);
+    if (existsSync(standardPath)) {
+        return standardPath;
+    }
+    
+    // Try Vercel path - look for data in the same directory as the current file
+    const vercelPath = path.join(__dirname, relativePath);
+    if (existsSync(vercelPath)) {
+        return vercelPath;
+    }
+    
+    // Try one directory up (for Next.js setup)
+    const upperPath = path.join(__dirname, '../data', relativePath);
+    if (existsSync(upperPath)) {
+        return upperPath;
+    }
+    
+    // Try in the public directory (available in Vercel deployments)
+    const publicPath = path.join(process.cwd(), 'public', 'data', relativePath);
+    if (existsSync(publicPath)) {
+        return publicPath;
+    }
+    
+    // If all else fails, try from project root
+    const projectRootPath = path.resolve(process.cwd(), 'converter/data', relativePath);
+    if (existsSync(projectRootPath)) {
+        return projectRootPath;
+    }
+    
+    throw new Error(`Could not find data file: ${relativePath}. Tried paths: ${standardPath}, ${vercelPath}, ${upperPath}, ${publicPath}, ${projectRootPath}`);
+}
+
+// Load data files with robust path resolution
+const tPose = JSON.parse(readFileSync(resolveDataPath('t-pose.json'), 'utf8'));
+const jointsTuples = JSON.parse(readFileSync(resolveDataPath('joints-map.json'), 'utf8'));
+const jointsToRemove = JSON.parse(readFileSync(resolveDataPath('joints-remove.json'), 'utf8'));
 
 
 export async function convert(file, output, merge, silent, shouldInspect) {
@@ -39,8 +75,8 @@ export async function convert(file, output, merge, silent, shouldInspect) {
     const emissiveStrengthExtension = main.createExtension(KHRMaterialsEmissiveStrength);
 
 
-    // load msquared skeleton - use absolute path
-    const skeletonPath = path.join(__dirname, './data/skeleton.glb');
+    // load msquared skeleton - use resolved path
+    const skeletonPath = resolveDataPath('skeleton.glb');
     const documentDonor = await io.read(skeletonPath);
     documentDonor.setLogger(new Logger(Logger.Verbosity.ERROR));
 
