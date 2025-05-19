@@ -16,37 +16,46 @@ const __dirname = path.dirname(__filename);
 
 // Helper function to find data directory in different environments
 function resolveDataPath(relativePath) {
-    // Try the standard path
-    const standardPath = path.join(__dirname, './data', relativePath);
-    if (existsSync(standardPath)) {
-        return standardPath;
+    console.log(`Attempting to resolve path for: ${relativePath}`);
+    console.log(`Current directory: ${__dirname}`);
+    console.log(`Current working directory: ${process.cwd()}`);
+    
+    const possiblePaths = [
+        // Standard paths
+        path.join(__dirname, './data', relativePath),
+        path.join(__dirname, relativePath),
+        path.join(__dirname, '../data', relativePath),
+        
+        // Vercel-specific paths
+        path.join(process.cwd(), 'public', 'data', relativePath),
+        path.join(process.cwd(), 'converter/data', relativePath),
+        
+        // Serverless function paths for Vercel
+        '/var/task/public/data/' + relativePath,
+        '/var/task/converter/data/' + relativePath,
+        
+        // Additional Vercel runtime paths
+        '/vercel/path0/public/data/' + relativePath,
+        '/var/task/data/' + relativePath,
+        path.join(process.cwd(), 'data', relativePath),
+        path.join(process.cwd(), '.next/server/chunks/data', relativePath)
+    ];
+    
+    // Try all possible paths
+    for (const testPath of possiblePaths) {
+        console.log(`Checking path: ${testPath}`);
+        if (existsSync(testPath)) {
+            console.log(`Found file at: ${testPath}`);
+            return testPath;
+        }
     }
     
-    // Try Vercel path - look for data in the same directory as the current file
-    const vercelPath = path.join(__dirname, relativePath);
-    if (existsSync(vercelPath)) {
-        return vercelPath;
-    }
+    // Additional debug info if file not found
+    console.error(`Failed to find data file: ${relativePath}`);
+    console.error(`Environment: NODE_ENV=${process.env.NODE_ENV}`);
+    console.error(`Tried paths: ${possiblePaths.join(', ')}`);
     
-    // Try one directory up (for Next.js setup)
-    const upperPath = path.join(__dirname, '../data', relativePath);
-    if (existsSync(upperPath)) {
-        return upperPath;
-    }
-    
-    // Try in the public directory (available in Vercel deployments)
-    const publicPath = path.join(process.cwd(), 'public', 'data', relativePath);
-    if (existsSync(publicPath)) {
-        return publicPath;
-    }
-    
-    // If all else fails, try from project root
-    const projectRootPath = path.resolve(process.cwd(), 'converter/data', relativePath);
-    if (existsSync(projectRootPath)) {
-        return projectRootPath;
-    }
-    
-    throw new Error(`Could not find data file: ${relativePath}. Tried paths: ${standardPath}, ${vercelPath}, ${upperPath}, ${publicPath}, ${projectRootPath}`);
+    throw new Error(`Could not find data file: ${relativePath}. Tried paths: ${possiblePaths.join(', ')}`);
 }
 
 // Load data files with robust path resolution
