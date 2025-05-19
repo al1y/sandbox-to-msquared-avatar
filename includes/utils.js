@@ -65,7 +65,7 @@ export const inspect = (document) => {
 };
 
 
-export const parseArgs = async () => {
+export const parseArgs = async (isImported = false) => {
     const options = commandLineArgs([{
         name: 'help',
         alias: 'h',
@@ -99,6 +99,11 @@ export const parseArgs = async () => {
         type: Boolean,
         defaultValue: false
     }]);
+
+    // Skip validation when imported programmatically
+    if (isImported) {
+        return options;
+    }
 
     if (options.help || process.argv.length <= 2) {
         console.log('CLI tool for converting GLTF avatars from sandbox.game into MSquared avatar, with list of options:');
